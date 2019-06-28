@@ -27,6 +27,8 @@ BEGIN_MESSAGE_MAP(CLabyrinthGeneratorView, CView)
 	ON_COMMAND(ID_FILE_PRINT, &CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_DIRECT, &CView::OnFilePrint)
 	ON_COMMAND(ID_FILE_PRINT_PREVIEW, &CView::OnFilePrintPreview)
+	ON_COMMAND(ID_32771, &CLabyrinthGeneratorView::OnGenerate)
+	ON_COMMAND(ID_32773, &CLabyrinthGeneratorView::OnSolve)
 END_MESSAGE_MAP()
 
 // CLabyrinthGeneratorView 构造/析构
@@ -103,3 +105,28 @@ CLabyrinthGeneratorDoc* CLabyrinthGeneratorView::GetDocument() const // 非调�
 
 
 // CLabyrinthGeneratorView 消息处理程序
+
+
+void CLabyrinthGeneratorView::OnGenerate()
+{
+	// TODO: 在此添加命令处理程序代码
+	CRect CR;
+	GetClientRect(CR);
+	CR.DeflateRect(100, 100);
+	CDC* pDC = GetDC();
+	if (CR.Width() >= CR.Height())
+	{
+		int lenth = CR.CenterPoint().y - CR.TopLeft().y;
+		int rx1 = CR.CenterPoint().x - lenth;
+		int rx2 = CR.CenterPoint().x + lenth;
+		CR.SetRect(rx1, CR.TopLeft().y, rx2, CR.BottomRight().y);
+	}
+	pDC->Rectangle(CR);
+	
+}
+
+
+void CLabyrinthGeneratorView::OnSolve()
+{
+	// TODO: 在此添加命令处理程序代码
+}
