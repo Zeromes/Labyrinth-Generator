@@ -18,7 +18,7 @@
 #endif
 
 #define test(data) CString str;str.Format(_T("%d"), data);MessageBox(str)
-int difficulty = 40;		//难度需为2的倍数
+int difficulty = 20;		//难度需为2的倍数
 // CLabyrinthGeneratorView
 
 IMPLEMENT_DYNCREATE(CLabyrinthGeneratorView, CView)
@@ -168,8 +168,8 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 	pDC->SelectObject(&pen);
 	int* Vline = new int[difficulty];	//用于保存竖线的位置
 	int* Hline = new int[difficulty];	//用于保存横线的位置
-	int* ConnectionIndexA = new int[difficulty];		//用于保存前一片连通区的编号
-	int* ConnectionIndexB = new int[difficulty];		//用于保存后一片连通区的编号
+	int* ConnectionIndexA = new int[difficulty];		//用于保存旧的连通区的编号
+	int* ConnectionIndexB = new int[difficulty];		//用于保存新的连通区的编号
 	int MaxIndex = 0;	//记录当前使用的最大连通区编号
 	//初始化上边框线
 	for (int i = 0; i < difficulty; i++)
@@ -197,7 +197,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 					//随机画竖线
 					srand((int)time(0) * rand());
 					pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + (i * slen));	//将画笔移到起始位置
-					if (rand() < 13000)
+					if (rand() < 10000)
 					{
 						pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);	//画竖线
 						Vline[j - 1] = 1;
@@ -215,7 +215,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 					//随机画竖线
 					srand((int)time(0) * rand());
 					pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + (i * slen));	//将画笔移到起始位置
-					if (rand() < 13000)
+					if (rand() < 10000)
 					{
 						pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);	//画竖线
 						Vline[j - 1] = 1;
@@ -242,7 +242,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 				//随性
 				srand((int)time(0) * rand());
 				pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + (i * slen));	//将画笔移到起始位置
-				if (rand() < 13000)
+				if (rand() < 10000)
 				{
 					pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);	//画竖线
 					Vline[j - 1] = 1;
@@ -256,6 +256,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 			}
 		}
 		//计算连通区
+		//先对新区赋值
 		int before = 0;									//检查区起始编号
 		for (int j = 0; j < difficulty; j++)			//逐个竖线检查
 		{
@@ -266,11 +267,6 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 				{
 					if (Hline[k] == 0)					//如果遇到出口
 					{
-						//将该片区域的连通区编号赋为出口处的连通区编号
-						for (int l = before; l <= j; l++)
-						{
-							ConnectionIndexB[l] = ConnectionIndexA[k];
-						}
 						found = TRUE;
 						break;
 					}
@@ -287,6 +283,85 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 				before = j + 1;		//设置检查区起始位置到下一个横线
 			}
 		}
+		//处理旧连通区编号（只对有2个及以上出口的检查区做操作）
+		before = 0;
+		for (int j = 0; j < difficulty; j++)			//逐个竖线检查
+		{
+			if (Vline[j] == 1)							//如果遇到竖线
+			{
+				for (int k = before; k <= j; k++)		//逐个检查检查区的横线
+				{
+					int ind1, ind2;							//暂存区号
+					int c = 0;								//记录检查区中出口的个数
+					if (Hline[k] == 0)						//如果遇到出口
+					{
+						c++;
+						if (c == 1)							//如果是第一个出口
+						{
+							ind1 = ConnectionIndexA[k];		//保存区号到ind1
+						}
+						else if (c == 2)					//如果是第个出口
+						{
+							ind2 = ConnectionIndexA[k];		//保存区号到ind2
+						}
+						else if (c > 2)						//如果是第3或以上出口
+						{
+							ind1 = ind2;
+							ind2 = ConnectionIndexA[k];		//ind1，ind2后移
+						}
+						if (c >= 2)							//如果检查到了第二或以上个出口
+						{
+							
+							if (ind1 <= ind2)				//如果前面出口的区号比后面出口区号的值小
+							{
+								//将旧区号数组中小的换大的
+								for (int l = 0; l < difficulty; l++)
+								{
+									if (ConnectionIndexA[l] == ind2)
+									{
+										ConnectionIndexA[l] = ind1;
+									}
+								}
+							}
+							else                             //如果前面出口的区号比后面出口区号的值大
+							{
+								//将旧区号数组中小的换大的
+								for (int l = 0; l < difficulty; l++)
+								{
+									if (ConnectionIndexA[l] == ind1)
+									{
+										ConnectionIndexA[l] = ind2;
+									}
+								}
+							}
+						}
+					}
+				}
+				before = j + 1;		//设置检查区起始位置到下一个横线
+			}
+		}
+		//对新连通区编号数组进行赋值
+		before = 0;									//检查区起始编号
+		for (int j = 0; j < difficulty; j++)			//逐个竖线检查
+		{
+			if (Vline[j] == 1)							//如果遇到竖线
+			{
+				for (int k = before; k <= j; k++)		//逐个检查检查区的横线
+				{
+					if (Hline[k] == 0)					//如果遇到出口
+					{
+						//将该片区域的连通区编号赋为出口处的连通区编号
+						for (int l = before; l <= j; l++)
+						{
+							ConnectionIndexB[l] = ConnectionIndexA[k];
+						}
+						break;
+					}
+				}
+				before = j + 1;		//设置检查区起始位置到下一个横线
+			}
+		}
+
 		//将计算好的连通区编号放到旧连通区编号
 		for (int j = 0; j < difficulty; j++)
 		{
@@ -353,7 +428,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 					{
 						srand((int)time(0) * rand());
 						pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + ((i + 1) * slen));	//将画笔移到起始位置
-						if (rand() % 10)
+						if (rand() <50)
 						{
 							pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);	//画横线
 							Hline[j] = 1;
@@ -385,7 +460,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 				{
 					srand((int)time(0) * rand());
 					pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + ((i + 1) * slen));	//将画笔移到起始位置
-					if (rand() % 10)
+					if (rand() <50)
 					{
 						pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);	//画横线
 						Hline[j] = 1;
