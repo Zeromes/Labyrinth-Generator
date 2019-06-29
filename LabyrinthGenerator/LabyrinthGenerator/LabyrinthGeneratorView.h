@@ -43,6 +43,7 @@ protected:
 public:
 	afx_msg void OnGenerate();
 	afx_msg void OnSolve();
+//	afx_msg void OnDiffSet();
 };
 
 #ifndef _DEBUG  // LabyrinthGeneratorView.cpp 中的调试版本
