@@ -19,7 +19,6 @@ class CLabyrinthGeneratorApp : public CWinApp
 public:
 	CLabyrinthGeneratorApp() noexcept;
 
-
 // 重写
 public:
 	virtual BOOL InitInstance();

@@ -18,7 +18,11 @@
 #endif
 
 #define test(data) CString str;str.Format(_T("%d"), data);MessageBox(str)
-int difficulty = 20;		//难度需为2的倍数
+int difficulty = 60;		//难度需为2的倍数
+int* HLINE = new int[difficulty * difficulty];	//用于保存迷宫的所有横线
+int* VLINE = new int[difficulty * difficulty];	//用于保存迷宫的所有竖线
+bool generated = false;
+
 // CLabyrinthGeneratorView
 
 IMPLEMENT_DYNCREATE(CLabyrinthGeneratorView, CView)
@@ -37,7 +41,11 @@ END_MESSAGE_MAP()
 CLabyrinthGeneratorView::CLabyrinthGeneratorView() noexcept
 {
 	// TODO: 在此处添加构造代码
-
+	for (int i = 0; i < difficulty * difficulty; i++)
+	{
+		HLINE[i] = 0;
+		VLINE[i] = 0;
+	}
 }
 
 CLabyrinthGeneratorView::~CLabyrinthGeneratorView()
@@ -54,7 +62,7 @@ BOOL CLabyrinthGeneratorView::PreCreateWindow(CREATESTRUCT& cs)
 
 // CLabyrinthGeneratorView 绘图
 
-void CLabyrinthGeneratorView::OnDraw(CDC* /*pDC*/)
+void CLabyrinthGeneratorView::OnDraw(CDC* pDC)
 {
 	CLabyrinthGeneratorDoc* pDoc = GetDocument();
 	ASSERT_VALID(pDoc);
@@ -62,6 +70,86 @@ void CLabyrinthGeneratorView::OnDraw(CDC* /*pDC*/)
 		return;
 
 	// TODO: 在此处为本机数据添加绘制代码
+	CPen pen(PS_SOLID, 1, RGB(0, 0, 0));
+	CPen out(PS_SOLID, 1, RGB(0, 255, 0));
+	CPen eraser(PS_SOLID, 1, RGB(255, 255, 255));
+	CPen* oldPen = pDC->SelectObject(&pen);
+	CRect area;				//区域
+	GetClientRect(area);
+	area.DeflateRect(50, 50);
+	int width;
+	if (area.Width() >= area.Height())
+	{
+		width = area.CenterPoint().y - area.TopLeft().y;	//实为1/2宽度
+		while (width % (difficulty / 2) != 0)
+		{
+			width++;
+		}
+		int rx1 = area.CenterPoint().x - width;
+		int rx2 = area.CenterPoint().x + width;
+		int ry1 = area.CenterPoint().y - width;
+		int ry2 = area.CenterPoint().y + width;
+		area.SetRect(rx1, ry1, rx2, ry2);
+	}
+	else
+	{
+		width = area.CenterPoint().x - area.TopLeft().x;	//实为1/2宽度
+		while (width % (difficulty / 2) != 0)
+		{
+			width++;
+		}
+		int rx1 = area.CenterPoint().x - width;
+		int rx2 = area.CenterPoint().x + width;
+		int ry1 = area.CenterPoint().y - width;
+		int ry2 = area.CenterPoint().y + width;
+		area.SetRect(rx1, ry1, rx2, ry2);
+	}
+	pDC->Rectangle(area);					//绘制区域
+
+	width *= 2;			//实际宽度
+
+	int slen = width / difficulty;	//获取单线长度
+
+	//绘制入口和出口
+	pDC->SelectObject(&eraser);
+	pDC->MoveTo(area.TopLeft());
+	pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);	//入口
+	pDC->SelectObject(&out);
+	pDC->MoveTo(area.BottomRight().x - 1, area.BottomRight().y - 1);
+	pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);	//出口
+	
+
+	//还原迷宫
+	//绘制竖线
+	pDC->SelectObject(&pen);
+	for (int i = 0; i < difficulty; i++)
+	{
+		for (int j = 0; j < difficulty; j++)
+		{
+			if (VLINE[(difficulty * i) + j] == 1)
+			{
+				pDC->MoveTo(area.TopLeft().x + ((j + 1) * slen), area.TopLeft().y + (i * slen));	//将画笔移到起始位置
+				pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);	//画竖线
+			}
+		}
+	}
+	//绘制横线
+	{
+		for (int i = 0; i < difficulty; i++)
+		{
+			for (int j = 0; j < difficulty; j++)
+			{
+				if (HLINE[(difficulty * i) + j] == 1)
+				{
+					pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + ((i + 1) * slen));	//将画笔移到起始位置
+					pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);		//画竖线
+				}
+			}
+		}
+	}
+
+	//绘制完毕，恢复环境
+	pDC->SelectObject(oldPen);
 }
 
 
@@ -117,6 +205,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 
 	//把画笔选入环境
 	CPen pen(PS_SOLID, 1, RGB(0, 0, 0));
+	CPen out(PS_SOLID, 1, RGB(0, 255, 0));
 	CPen eraser(PS_SOLID, 1, RGB(255, 255, 255));
 	CPen* oldPen = pDC->SelectObject(&pen);
 
@@ -161,6 +250,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 	pDC->SelectObject(&eraser);
 	pDC->MoveTo(area.TopLeft());
 	pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);	//入口
+	pDC->SelectObject(&out);
 	pDC->MoveTo(area.BottomRight().x - 1, area.BottomRight().y - 1);
 	pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);	//出口
 
@@ -254,6 +344,11 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 				}
 				kong = FALSE;
 			}
+		}
+		//保存竖线
+		for (int j = 0; j < difficulty; j++)
+		{
+			VLINE[(difficulty * i) + j] = Vline[j];
 		}
 		//计算连通区
 		//先对新区赋值
@@ -428,7 +523,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 					{
 						srand((int)time(0) * rand());
 						pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + ((i + 1) * slen));	//将画笔移到起始位置
-						if (rand() <50)
+						if (rand() <5000)
 						{
 							pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);	//画横线
 							Hline[j] = 1;
@@ -460,7 +555,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 				{
 					srand((int)time(0) * rand());
 					pDC->MoveTo(area.TopLeft().x + (j * slen), area.TopLeft().y + ((i + 1) * slen));	//将画笔移到起始位置
-					if (rand() <50)
+					if (rand() <5000)
 					{
 						pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);	//画横线
 						Hline[j] = 1;
@@ -474,6 +569,11 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 				}
 			}
 			HIsFull = TRUE;
+		}
+		//保存横线
+		for (int j = 0; j < difficulty; j++)
+		{
+			HLINE[(difficulty * i) + j] = Hline[j];
 		}
 	}
 
@@ -511,8 +611,9 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 			{
 				if (secondout == firstout + 1)
 				{
-					pDC->MoveTo(area.TopLeft().x + ((first + 1) * slen), area.TopLeft().y + ((difficulty - 1) * slen));	//将画笔移到随机位置
+					pDC->MoveTo(area.TopLeft().x + ((firstout + 1) * slen), area.TopLeft().y + ((difficulty - 1) * slen));	//将画笔移到随机位置
 					pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);							//画竖线
+					VLINE[(difficulty * (difficulty - 1)) + firstout] = 1;
 				}
 				else
 				{
@@ -520,6 +621,7 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 					int random = rand() % (secondout - 1 - firstout) + firstout;
 					pDC->MoveTo(area.TopLeft().x + ((random + 1) * slen), area.TopLeft().y + ((difficulty - 1) * slen));	//将画笔移到随机位置
 					pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);							//画竖线
+					VLINE[(difficulty * (difficulty - 1)) + random] = 1;
 				}
 			}
 			firstout = secondout;
@@ -532,6 +634,56 @@ void CLabyrinthGeneratorView::OnGenerate()//生成迷宫
 
 	//绘制完毕，恢复环境
 	pDC->SelectObject(oldPen);
+
+	generated = true;
+}
+
+bool passable(int di, int up, int down, int left, int right)	//检查当前前进方向上是否没墙的函数
+{
+	if (di == 1)
+	{
+		if (left == 1)return false;
+		else return true;
+	}
+	if (di == 2)
+	{
+		if (up == 1)return false;
+		else return true;
+	}
+	if (di == 3)
+	{
+		if (right == 1)return false;
+		else return true;
+	}
+	if (di == 4)
+	{
+		if (down == 1)return false;
+		else return true;
+	}
+}
+
+bool out(int h, int up, int down, int left, int right)
+{
+	if (h == 1)
+	{
+		if (left == 0)return true;
+		else return false;
+	}
+	if (h == 2)
+	{
+		if (up == 0)return true;
+		else return false;
+	}
+	if (h == 3)
+	{
+		if (right == 0)return true;
+		else return false;
+	}
+	if (h == 4)
+	{
+		if (down == 0)return true;
+		else return false;
+	}
 }
 
 
@@ -539,5 +691,296 @@ void CLabyrinthGeneratorView::OnSolve()//求解迷宫
 {
 	// TODO: 在此添加命令处理程序代码
 
-	//老鼠跟墙走？
+	if (generated)	//判断是否已经生成过迷宫
+	{
+		CDC* pDC = GetDC();						//设备环境
+		int PX = 0, PY = 0;						//记录目前走到的坐标
+		int up, down, left, right;				//墙
+		int direction = 4;						//记录目前的朝向，1为左，2为上，3为右，4为下
+		int hand = 1;							//记录目前“手”的朝向，1为左，2为上，3为右，4为下
+
+		//把画笔选入环境
+		CPen pen(PS_SOLID, 1, RGB(255, 0, 0));
+		CPen eraser(PS_SOLID, 1, RGB(255, 255, 255));
+		CPen* oldPen = pDC->SelectObject(&pen);
+
+		//将迷宫的绘制区域放到area
+		CRect area;				//区域
+		GetClientRect(area);
+		area.DeflateRect(50, 50);
+		int width;
+		if (area.Width() >= area.Height())
+		{
+			width = area.CenterPoint().y - area.TopLeft().y;	//实为1/2宽度
+			while (width % (difficulty / 2) != 0)
+			{
+				width++;
+			}
+			int rx1 = area.CenterPoint().x - width;
+			int rx2 = area.CenterPoint().x + width;
+			int ry1 = area.CenterPoint().y - width;
+			int ry2 = area.CenterPoint().y + width;
+			area.SetRect(rx1, ry1, rx2, ry2);
+		}
+		else
+		{
+			width = area.CenterPoint().x - area.TopLeft().x;	//实为1/2宽度
+			while (width % (difficulty / 2) != 0)
+			{
+				width++;
+			}
+			int rx1 = area.CenterPoint().x - width;
+			int rx2 = area.CenterPoint().x + width;
+			int ry1 = area.CenterPoint().y - width;
+			int ry2 = area.CenterPoint().y + width;
+			area.SetRect(rx1, ry1, rx2, ry2);
+		}
+
+		width *= 2;			//实际宽度
+
+		int slen = width / difficulty;	//获取单线长度
+
+		//绘制求解路线使用老鼠跟墙走方法（非最优解）
+		pDC->MoveTo(area.TopLeft().x, area.TopLeft().y + (slen / 2));
+		pDC->LineTo(pDC->GetCurrentPosition().x + (slen / 2), pDC->GetCurrentPosition().y);
+		while (PX != difficulty - 1 || PY != difficulty - 1)
+		{
+			//检查四周是否有墙
+			if (PY == difficulty - 1)down = 1;
+			else
+			{
+				if (HLINE[(difficulty * PY) + PX] == 1)down = 1;
+				else down = 0;
+			}
+			if (VLINE[(difficulty * PY) + PX] == 1)right = 1;
+			else right = 0;
+			if (PY == 0)up = 1;
+			else
+			{
+				if (HLINE[(difficulty * (PY - 1)) + PX] == 1)up = 1;
+				else up = 0;
+			}
+			if (PX == 0)left = 1;
+			else
+			{
+				if (VLINE[(difficulty * PY) + PX - 1] == 1)left = 1;
+				else left = 0;
+			}
+			if (out(hand, up, down, left, right) && !passable(direction, up, down, left, right))	//遇到即是出口又是路的尽头的情况是执行转向的操作
+			{
+				direction++;
+				hand++;
+				if (direction == 5)direction = 1;
+				if (hand == 5)hand = 1;
+				if (direction == 1)
+				{
+					if (pDC->GetPixel(pDC->GetCurrentPosition().x - 2, pDC->GetCurrentPosition().y) == RGB(255, 0, 0))
+					{
+						pDC->SelectObject(&eraser);
+						pDC->LineTo(pDC->GetCurrentPosition().x - slen, pDC->GetCurrentPosition().y);
+						PX--;
+					}
+					else
+					{
+						pDC->SelectObject(&pen);
+						pDC->LineTo(pDC->GetCurrentPosition().x - slen, pDC->GetCurrentPosition().y);
+						PX--;
+					}
+				}
+				if (direction == 2)
+				{
+					if (pDC->GetPixel(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - 2) == RGB(255, 0, 0))
+					{
+						pDC->SelectObject(&eraser);
+						pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);
+						PY--;
+					}
+					else
+					{
+						pDC->SelectObject(&pen);
+						pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);
+						PY--;
+					}
+				}
+				if (direction == 3)
+				{
+					if (pDC->GetPixel(pDC->GetCurrentPosition().x + 2, pDC->GetCurrentPosition().y) == RGB(255, 0, 0))
+					{
+						pDC->SelectObject(&eraser);
+						pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);
+						PX++;
+					}
+					else
+					{
+						pDC->SelectObject(&pen);
+						pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);
+						PX++;
+					}
+				}
+				if (direction == 4)
+				{
+					if (pDC->GetPixel(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + 2) == RGB(255, 0, 0))
+					{
+						pDC->SelectObject(&eraser);
+						pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);
+						PY++;
+					}
+					else
+					{
+						pDC->SelectObject(&pen);
+						pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);
+						PY++;
+					}
+				}
+			}
+			else
+			{
+				if (out(hand, up, down, left, right))	//遇到出口，转向并向前走
+				{
+					direction++;
+					hand++;
+					if (direction == 5)direction = 1;
+					if (hand == 5)hand = 1;
+					if (direction == 1)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x - 2, pDC->GetCurrentPosition().y) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x - slen, pDC->GetCurrentPosition().y);
+							PX--;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x - slen, pDC->GetCurrentPosition().y);
+							PX--;
+						}
+					}
+					if (direction == 2)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - 2) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);
+							PY--;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);
+							PY--;
+						}
+					}
+					if (direction == 3)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x + 2, pDC->GetCurrentPosition().y) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);
+							PX++;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);
+							PX++;
+						}
+					}
+					if (direction == 4)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + 2) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);
+							PY++;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);
+							PY++;
+						}
+					}
+				}
+				else if (!passable(direction, up, down, left, right))	//遇到路的尽头
+				{
+					direction--;
+					hand--;
+					if (direction == 0)direction = 4;
+					if (hand == 0)hand = 4;
+				}
+				else                                                    //可以走通则向前走
+				{
+					if (direction == 1)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x - 2, pDC->GetCurrentPosition().y) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x - slen, pDC->GetCurrentPosition().y);
+							PX--;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x - slen, pDC->GetCurrentPosition().y);
+							PX--;
+						}
+					}
+					if (direction == 2)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - 2) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);
+							PY--;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y - slen);
+							PY--;
+						}
+					}
+					if (direction == 3)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x + 2, pDC->GetCurrentPosition().y) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);
+							PX++;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x + slen, pDC->GetCurrentPosition().y);
+							PX++;
+						}
+					}
+					if (direction == 4)
+					{
+						if (pDC->GetPixel(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + 2) == RGB(255, 0, 0))
+						{
+							pDC->SelectObject(&eraser);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);
+							PY++;
+						}
+						else
+						{
+							pDC->SelectObject(&pen);
+							pDC->LineTo(pDC->GetCurrentPosition().x, pDC->GetCurrentPosition().y + slen);
+							PY++;
+						}
+					}
+				}
+			}
+		}
+		pDC->LineTo(pDC->GetCurrentPosition().x + (slen / 2), pDC->GetCurrentPosition().y);
+
+		//绘制完毕，恢复环境
+		pDC->SelectObject(oldPen);
+	}
+	else
+	{
+		MessageBox(_T("请先生成迷宫！"), _T("错误"), MB_ICONWARNING);
+	}
 }

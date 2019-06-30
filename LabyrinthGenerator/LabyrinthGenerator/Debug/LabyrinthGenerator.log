@@ -1,2 +1,4 @@
 ﻿  LabyrinthGeneratorView.cpp
-  LabyrinthGenerator.vcxproj -> D:\GitHub Local\Labyrinth-Generator\LabyrinthGenerator\Debug\LabyrinthGenerator.exe
+  E:\GitHub Local\Labyrinth-Generator\LabyrinthGenerator\LabyrinthGenerator\LabyrinthGeneratorView.cpp(663) : warning C4715: “passable”: 不是所有的控件路径都返回值
+  E:\GitHub Local\Labyrinth-Generator\LabyrinthGenerator\LabyrinthGenerator\LabyrinthGeneratorView.cpp(687) : warning C4715: “out”: 不是所有的控件路径都返回值
+  LabyrinthGenerator.vcxproj -> E:\GitHub Local\Labyrinth-Generator\LabyrinthGenerator\Debug\LabyrinthGenerator.exe
